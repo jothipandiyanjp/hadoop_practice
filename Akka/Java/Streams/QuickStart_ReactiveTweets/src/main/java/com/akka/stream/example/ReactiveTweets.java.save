@@ -1,0 +1,58 @@
+package com.akka.stream.example;
+
+import java.util.Arrays;
+import java.util.concurrent.CompletionStage;
+
+import akka.NotUsed;
+import akka.actor.ActorSystem;
+import akka.event.Logging;
+import akka.event.LoggingAdapter;
+import akka.stream.ActorMaterializer;
+import akka.stream.Materializer;
+import akka.stream.javadsl.Keep;
+import akka.stream.javadsl.RunnableGraph;
+import akka.stream.javadsl.Sink;
+import akka.stream.javadsl.Source;
+
+public class ReactiveTweets {
+
+	private final ActorSystem system = ActorSystem.create("akka-reactive-tweets");
+	private final LoggingAdapter log = Logging.getLogger(system, this);
+	
+	public static final String AKKA = "#akka";
+
+	
+	public void usingHashTag(){
+		final Materializer materializer = ActorMaterializer.create(system);
+		
+		final Source<Tweets, NotUsed> tweets = Source.from(
+				Arrays.asList(
+						new Tweets("pepe", 1000, "Wow! #akka is great"),
+						new Tweets("juan", 2000, "I am trendy, guys!"),
+						new Tweets("maria", 3000, "#This #is #an #instagram #tweet"),
+						new Tweets("ilitri", 4000, "Ou yeah! usaré #akka en el foro")
+				)
+		);		
+
+		final Source<String, NotUsed> sourceOfauthors = tweets.filter(t -> t.hashtags().contains(AKKA))
+				.map(t -> t.author);
+		
+		sourceOfauthors.runForeach(log::debug, materializer);
+
+
+		final Sink<Integer, CompletionStage<Integer>> sumSink = Sink.<Integer, Integer> fold(0,
+				(acc, elem) -> acc + elem);
+
+		final RunnableGraph<CompletionStage<Integer>> counter = tweets.map(t -> 1).toMat(sumSink, Keep.right());
+
+		final CompletionStage<Integer> sum = counter.run(materializer);
+
+		sum.thenAcceptAsync(c -> log.debug("Total tweets processed: " + c), system.dispatcher())
+				.whenComplete((a, b) -> system.terminate());
+		
+	}
+	public static void main(String[] args) {
+		ReactiveTweets tweets = new ReactiveTweets();
+		tweets.usingHashTag();
+	}
+}

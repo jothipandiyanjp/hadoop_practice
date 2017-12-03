@@ -1,0 +1,8 @@
+option java_package = "docs.persistence.proto";
+option optimize_for = SPEED;
+ 
+message SeatReserved {
+  required string letter   = 1;
+  required uint32 row      = 2;
+  optional string seatType = 3; // the new field
+}

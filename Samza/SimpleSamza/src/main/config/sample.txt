@@ -1,0 +1,5 @@
+
+
+# Job Coordinator
+job.coordinator.system=kafka
+job.coordinator.replication.factor=1
